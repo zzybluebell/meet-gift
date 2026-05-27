@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Gift, ShieldCheck, ScanLine, ArrowRight, Building2, Monitor, Smartphone } from "lucide-react";
+import { Copyright } from "@/components/copyright";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,7 @@ export default async function HomePage() {
           多端协同 · 灵活资格规则 · 实时库存 · 一码一用 · 自动过期 · 名单导入 · 行政补录
         </div>
       </div>
+      <Copyright />
     </div>
   );
 }

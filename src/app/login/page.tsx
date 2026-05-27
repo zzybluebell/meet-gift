@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Gift } from "lucide-react";
+import { Copyright } from "@/components/copyright";
 
 function LoginInner() {
   const router = useRouter();
@@ -50,7 +51,7 @@ function LoginInner() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4 gap-6">
       <Card className="w-full max-w-md">
         <CardContent className="p-8 space-y-6">
           <div className="flex flex-col items-center text-center gap-2">
@@ -100,6 +101,7 @@ function LoginInner() {
           </div>
         </CardContent>
       </Card>
+      <Copyright />
     </div>
   );
 }

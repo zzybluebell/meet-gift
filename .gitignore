@@ -23,6 +23,9 @@ dev.db-journal
 # Claude Code 本地配置
 .claude/settings.local.json
 
+# 本地辅助脚本（PDF 导出等），不入库
+scripts/
+
 # Misc
 next-env.d.ts
 tsconfig.tsbuildinfo

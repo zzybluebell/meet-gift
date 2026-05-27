@@ -15,7 +15,7 @@
 | 端 | 路由 | 主要功能 |
 |---|---|---|
 | 行政管理端 | `/admin` | 看板、活动 CRUD、库存矩阵、员工、楼宇 |
-| 员工 H5 端 | `/m` | 我的福利、选择礼物 + 楼宇、生成核销码 |
+| 员工移动端网页 | `/m` | 我的福利、选择礼物 + 楼宇、生成核销码 |
 | 分仓核销端 | `/verify` | 扫码 / 6位码核销、库存、待核销名单 |
 
 ---
@@ -68,7 +68,7 @@ npm run dev
 
 | 决策 | 选择 | 原因 |
 |---|---|---|
-| 员工端形态 | H5（mobile web） | 公司 SSO 静默授权最快，IM 一点即开 |
+| 员工端形态 | 移动端网页 | 公司 SSO 静默授权最快，IM 一点即开 |
 | 核销码 | 6 位数字 + QR token | 一码一用、可离线缓存、绑定 claimId |
 | 库存模型 | 全局共享 + 软锁定 reserved | 同 SKU 可跨批次复用，预约/核销区分 |
 | 规则引擎 | 6 个预设 + 单层 AND/OR | "不能比 Excel 还难用" |
@@ -118,10 +118,10 @@ src/
 │   │   ├── employees/            员工名单
 │   │   ├── buildings/            楼宇分仓
 │   │   └── gifts/                礼物 SKU
-│   ├── m/                        员工端（H5）
+│   ├── m/                        员工端（移动端网页）
 │   │   ├── page.tsx              我的福利
 │   │   └── claim/[campaignId]/   预约 + 核销码
-│   ├── verify/                   核销端（H5）
+│   ├── verify/                   核销端（移动端网页）
 │   │   └── page.tsx              扫码 / 输码 / 库存 / 待核销
 │   └── api/
 │       ├── auth/                 login / logout / me
@@ -276,5 +276,5 @@ SELECT * FROM Inventory WHERE qtyReserved + qtyClaimed > qtyTotal;
 - [x] 数据看板秒级响应
 - [x] 限流：claim / verify / login 全部加上，防双击 / 防枚举
 - [x] 通知异步化：`after()` 不阻塞用户 RT
-- [ ] 真实 200+ 人并发压测（k6 / artillery，跑完用对账 SQL 验证）
+- [x] 真实 200+ 人并发压测（k6 / artillery，跑完用对账 SQL 验证）
 - [ ] 5 分钟培训视频（待录）

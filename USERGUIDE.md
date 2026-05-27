@@ -8,7 +8,7 @@
 
 **项目仓库**：[github.com/zzybluebell/meet-gift](https://github.com/zzybluebell/meet-gift)
 
-**用户设计流程图**：[user-workflow.pdf](https://drive.google.com/file/d/1UuHkirItJxL3XLSUMqKoXtrZLl0p5Tmw/view?usp=sharing)
+**用户流程图**：[user-workflow.pdf](https://drive.google.com/file/d/1UuHkirItJxL3XLSUMqKoXtrZLl0p5Tmw/view?usp=sharing)
 
 ---
 

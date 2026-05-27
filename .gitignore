@@ -16,3 +16,4 @@ prisma/migrations/dev/
 
 # Misc
 next-env.d.ts
+tsconfig.tsbuildinfo

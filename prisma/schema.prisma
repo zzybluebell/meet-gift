@@ -160,13 +160,13 @@ model Claim {
   @@unique([campaignId, employeeId]) // 一个员工一个批次只能领一份
 }
 
-// ===== IM 通知（飞书 / 钉钉 / 企微 mock）=====
+// ===== IM 通知（飞书 / 邮件 mock）=====
 model Notification {
   id          String   @id @default(cuid())
   campaignId  String
   employeeId  String
   type        String   // initial | reminder_24h | reminder_2h | reserved_confirm | claimed_confirm | last_call
-  channel     String   @default("lark") // lark | dingtalk | wecom | email
+  channel     String   @default("lark") // lark | email
   status      String   @default("queued") // queued | sent | failed | read | clicked
   title       String
   content     String

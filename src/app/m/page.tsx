@@ -17,6 +17,7 @@ const HOLIDAY_EMOJI: Record<string, string> = {
   childrens: "🧸",
   birthday: "🎂",
   tenure: "🎉",
+  new_hire: "🎁",
   other: "🎁",
 };
 

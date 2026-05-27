@@ -26,6 +26,7 @@ const HOLIDAY_LABEL: Record<string, string> = {
   childrens: "儿童节",
   birthday: "生日",
   tenure: "司庆",
+  new_hire: "新人入职",
   other: "其他",
 };
 

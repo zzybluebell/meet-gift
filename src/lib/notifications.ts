@@ -1,4 +1,4 @@
-// IM 通知（飞书/钉钉/企微 mock）的调度逻辑
+// IM 通知（飞书 / 邮件 mock）的调度逻辑
 import { prisma } from "./prisma";
 
 export type NotifType =
@@ -9,12 +9,10 @@ export type NotifType =
   | "reserved_confirm" // 预约成功
   | "claimed_confirm"; // 核销成功
 
-export type NotifChannel = "lark" | "dingtalk" | "wecom" | "email";
+export type NotifChannel = "lark" | "email";
 
 const CHANNEL_LABEL: Record<NotifChannel, string> = {
   lark: "飞书",
-  dingtalk: "钉钉",
-  wecom: "企业微信",
   email: "邮件",
 };
 
@@ -27,14 +25,11 @@ const TYPE_META: Record<NotifType, { titlePrefix: string; emoji: string }> = {
   claimed_confirm: { titlePrefix: "🎉 已成功领取", emoji: "🎉" },
 };
 
-// 选员工的默认渠道（mock：按工号尾号轮询）
+// 选员工的默认渠道（mock：按工号尾号分配 — 约 7 成走飞书，3 成走邮件）
 function pickChannel(employeeNo: string): NotifChannel {
   const last = parseInt(employeeNo.slice(-1), 10);
   if (isNaN(last)) return "lark";
-  if (last < 5) return "lark";
-  if (last < 8) return "dingtalk";
-  if (last === 8) return "wecom";
-  return "email";
+  return last < 7 ? "lark" : "email";
 }
 
 function buildCard(opts: {
@@ -174,7 +169,7 @@ export async function enqueueEmployeeNotification(
 
 /**
  * 模拟"发送"：把 queued 的批量标为 sent。
- * 真实环境会调用飞书 API；这里只是 1% 模拟失败、99% 立即 sent
+ * 真实环境会调用飞书 / 邮件 API；这里只是 1% 模拟失败、99% 立即 sent
  */
 export async function flushQueued(): Promise<{ sent: number; failed: number }> {
   const queued = await prisma.notification.findMany({

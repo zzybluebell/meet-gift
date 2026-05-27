@@ -14,23 +14,40 @@ export type Condition =
   | { field: "gender"; op: "=" | "!="; value: "M" | "F" | "Other" }
   | { field: "buildingId"; op: "=" | "!=" | "in"; value: string | string[] }
   | { field: "hasChildren"; op: "="; value: boolean }
-  | { field: "tenureYears"; op: ">=" | "<=" | "="; value: number }; // 司龄
+  | { field: "tenureYears"; op: ">=" | "<=" | "="; value: number } // 司龄
+  | { field: "tenureDays"; op: ">=" | "<=" | "="; value: number }; // 入职天数（新人活动用）
 
 export function evalRule(rule: Rule, emp: Employee): boolean {
   if ("type" in rule) {
     if (rule.type === "ALL") return true;
     if (rule.type === "AND") return rule.rules.every((r) => evalRule(r, emp));
     if (rule.type === "OR") return rule.rules.some((r) => evalRule(r, emp));
+    return false; // 未知 group type 一律拒绝，避免落到下面把整条规则当 Condition 解
   }
   const cond = rule as Condition;
   if (cond.field === "tenureYears") {
-    const years = Math.floor(
-      (Date.now() - new Date(emp.hireDate).getTime()) /
-        (365.25 * 24 * 60 * 60 * 1000)
+    // 未来 hireDate 视为 0 年司龄，避免负数让 "<=N" 把未入职员工算成符合
+    const years = Math.max(
+      0,
+      Math.floor(
+        (Date.now() - new Date(emp.hireDate).getTime()) /
+          (365.25 * 24 * 60 * 60 * 1000)
+      )
     );
     if (cond.op === ">=") return years >= cond.value;
     if (cond.op === "<=") return years <= cond.value;
     if (cond.op === "=") return years === cond.value;
+  }
+  if (cond.field === "tenureDays") {
+    const days = Math.max(
+      0,
+      Math.floor(
+        (Date.now() - new Date(emp.hireDate).getTime()) / (24 * 60 * 60 * 1000)
+      )
+    );
+    if (cond.op === ">=") return days >= cond.value;
+    if (cond.op === "<=") return days <= cond.value;
+    if (cond.op === "=") return days === cond.value;
   }
   const v = emp[cond.field as keyof Employee];
   if (cond.op === "=") return v === cond.value;
@@ -62,6 +79,7 @@ export function describeRule(rule: Rule): string {
     buildingId: "楼宇",
     hasChildren: "有孩子",
     tenureYears: "司龄",
+    tenureDays: "入职天数",
   };
   const opNames: Record<string, string> = {
     "=": "=",

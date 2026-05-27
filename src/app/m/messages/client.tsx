@@ -21,8 +21,6 @@ type Item = {
 
 const CHANNEL_META: Record<string, { name: string; color: string; logo: string }> = {
   lark: { name: "飞书", color: "from-[#3370FF] to-[#0852E5]", logo: "🐦" },
-  dingtalk: { name: "钉钉", color: "from-[#1A93FF] to-[#0a6dd9]", logo: "📌" },
-  wecom: { name: "企业微信", color: "from-[#04BE02] to-[#02a300]", logo: "💼" },
   email: { name: "邮件", color: "from-[#525252] to-[#262626]", logo: "✉" },
 };
 
@@ -43,6 +41,7 @@ const HOLIDAY_EMOJI: Record<string, string> = {
   childrens: "🎈",
   birthday: "🎂",
   tenure: "🏆",
+  new_hire: "🎁",
   other: "🎁",
 };
 
@@ -129,7 +128,7 @@ export function MessagesClient({ items: initialItems }: { items: Item[] }) {
       )}
 
       <div className="mt-6 text-center text-[10px] text-muted-foreground">
-        💡 真实场景中，这些消息会推送到你绑定的飞书 / 钉钉 / 企业微信
+        💡 真实场景中，这些消息会通过飞书或邮件推送给你
       </div>
     </div>
   );

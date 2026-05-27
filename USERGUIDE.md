@@ -182,7 +182,7 @@ draft（草稿）  →  active（进行中）  →  closed（已结束）
                   手动激活                  自动过期 or 手动关闭
 ```
 
-激活时**自动给所有合格员工推送初次通知**（飞书/钉钉/企微/邮件 mock）。
+激活时**自动给所有合格员工推送初次通知**（飞书 / 邮件 mock）。
 
 ### 4.3 推送中心 `/admin/notifications`
 
@@ -333,7 +333,7 @@ qtyAvailable = qtyTotal − qtyReserved − qtyClaimed
 模拟 IM 收件箱：
 
 - 每条消息一张大卡片
-- 顶部条显示渠道图标（飞书🐦 / 钉钉📌 / 企微💼 / 邮件✉）
+- 顶部条显示渠道图标（飞书🐦 / 邮件✉）
 - 类型标签彩色（新福利 / 24h 催领 / 2h 紧急 / 行政提醒 / 预约成功 / 已签收）
 - 卡片左侧节日 emoji（🥮🍡🧧🌹🎈🎂）
 - 标题 + 内容 + CTA 链接
@@ -484,9 +484,9 @@ A: 会。撤销 = `qtyReserved--`，立即释放给其他员工。
 
 A: 数据库唯一约束 `@@unique([campaignId, employeeId])` 强制一份。如果之前 cancelled / expired，员工可以重新预约（会覆盖原 claim）。
 
-### Q6: 真实环境怎么接飞书/钉钉？
+### Q6: 真实环境怎么接飞书 / 邮件？
 
-A: 把 `src/lib/notifications.ts` 的 `flushQueued()` 函数里的 mock "成功/失败"逻辑替换成真实的 IM Open API 调用。表结构、UI、漏斗都不用动。
+A: 把 `src/lib/notifications.ts` 的 `flushQueued()` 函数里的 mock "成功/失败"逻辑替换成真实的飞书 Open API / SMTP 调用。表结构、UI、漏斗都不用动。
 
 ### Q7: 如何让某个活动只对某个楼宇可见？
 

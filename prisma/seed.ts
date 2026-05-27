@@ -128,6 +128,16 @@ async function main() {
         allergenTags: JSON.stringify([]),
       },
     }),
+    prisma.gift.create({
+      data: {
+        name: "新人入职礼盒",
+        description: "公司周边大礼包：定制保温杯 + 笔记本 + tote bag + 鼠标垫",
+        imageUrl: "🎁",
+        value: 16800,
+        category: "daily",
+        allergenTags: JSON.stringify([]),
+      },
+    }),
   ]);
   console.log(`  创建 ${gifts.length} 个礼物 SKU`);
 

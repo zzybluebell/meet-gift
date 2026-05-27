@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/admin/page-header";
 import { InventoryEditor } from "./editor";
 
@@ -95,16 +94,8 @@ export default async function InventoryPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 flex items-center gap-4 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <Badge variant="success">可领</Badge> = 总量 - 预约 - 已发
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Badge variant="warning">预约</Badge> 软锁定，未核销
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Badge variant="muted">已发</Badge> 已核销出库
-        </span>
+      <div className="mt-6 text-xs text-muted-foreground">
+        每格大数字 = 可领（总量 − 预约 − 已发）。可领 ≤ 5 时数字变琥珀橙，提示低库存。点击数字可改总量。
       </div>
     </div>
   );

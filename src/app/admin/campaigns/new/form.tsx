@@ -21,7 +21,8 @@ const HOLIDAY_OPTIONS = [
   { value: "childrens", label: "儿童节", emoji: "🧸" },
   { value: "birthday", label: "生日", emoji: "🎂" },
   { value: "tenure", label: "司庆", emoji: "🎉" },
-  { value: "other", label: "其他", emoji: "🎁" },
+  { value: "new_hire", label: "新人入职", emoji: "🎁" },
+  { value: "other", label: "其他", emoji: "🎀" },
 ];
 
 type EligibilityPreset =
@@ -30,7 +31,8 @@ type EligibilityPreset =
   | { kind: "gender"; gender: "M" | "F" }
   | { kind: "building"; buildingIds: string[] }
   | { kind: "hasChildren" }
-  | { kind: "tenure"; years: number };
+  | { kind: "tenure"; years: number }
+  | { kind: "newHire"; days: number };
 
 function presetToRule(p: EligibilityPreset) {
   switch (p.kind) {
@@ -50,6 +52,8 @@ function presetToRule(p: EligibilityPreset) {
       return { type: "AND", rules: [{ field: "hasChildren", op: "=", value: true }] };
     case "tenure":
       return { type: "AND", rules: [{ field: "tenureYears", op: ">=", value: p.years }] };
+    case "newHire":
+      return { type: "AND", rules: [{ field: "tenureDays", op: "<=", value: p.days }] };
   }
 }
 
@@ -84,7 +88,10 @@ export function NewCampaignForm({
   const canSubmit =
     name.trim().length > 0 &&
     selectedGifts.length > 0 &&
-    new Date(startAt) < new Date(endAt);
+    new Date(startAt) < new Date(endAt) &&
+    // 新人预设的天数必须 > 0，否则资格名单永远是空
+    (preset.kind !== "newHire" || preset.days > 0) &&
+    (preset.kind !== "tenure" || preset.years >= 0);
 
   async function submit(status: "draft" | "active") {
     if (!canSubmit) return;
@@ -150,7 +157,17 @@ export function NewCampaignForm({
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setHolidayType(opt.value)}
+                    onClick={() => {
+                      setHolidayType(opt.value);
+                      // 选「新人入职」时自动联动资格预设：入职 30 天内
+                      if (opt.value === "new_hire" && preset.kind !== "newHire") {
+                        setPreset({ kind: "newHire", days: 30 });
+                      }
+                      // 从「新人入职」切到其他节日时，把新人预设重置成全员，避免 preset 卡在 newHire
+                      if (opt.value !== "new_hire" && preset.kind === "newHire") {
+                        setPreset({ kind: "all" });
+                      }
+                    }}
                     className={cn(
                       "h-12 rounded-lg border-2 text-sm transition-all flex items-center justify-center gap-1.5",
                       holidayType === opt.value
@@ -263,6 +280,12 @@ export function NewCampaignForm({
             >
               🏢 指定楼宇
             </PresetButton>
+            <PresetButton
+              active={preset.kind === "newHire"}
+              onClick={() => setPreset({ kind: "newHire", days: 30 })}
+            >
+              🎁 新人（入职 N 天内）
+            </PresetButton>
           </div>
 
           {preset.kind === "tenure" && (
@@ -276,6 +299,40 @@ export function NewCampaignForm({
                 className="w-20 h-8"
               />
               <span className="text-sm">年</span>
+            </div>
+          )}
+
+          {preset.kind === "newHire" && (
+            <div className="rounded-lg border bg-muted/30 p-3 flex items-center gap-2 flex-wrap">
+              <span className="text-sm">入职 ≤</span>
+              <Input
+                type="number"
+                min={1}
+                value={preset.days}
+                onChange={(e) => setPreset({ kind: "newHire", days: Number(e.target.value) || 0 })}
+                className="w-20 h-8"
+              />
+              <span className="text-sm">天</span>
+              <div className="flex gap-1 ml-2">
+                {[7, 30, 60, 90].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPreset({ kind: "newHire", days: n })}
+                    className={cn(
+                      "px-2 py-0.5 rounded-md text-xs border transition-all",
+                      preset.days === n
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background hover:border-primary/40"
+                    )}
+                  >
+                    {n} 天
+                  </button>
+                ))}
+              </div>
+              <div className="w-full text-xs text-muted-foreground mt-1">
+                💡 新人欢迎礼盒常用 30 天，试用期通常 90 天
+              </div>
             </div>
           )}
 
@@ -349,7 +406,15 @@ export function NewCampaignForm({
           </Button>
           {!canSubmit && (
             <div className="text-xs text-muted-foreground">
-              {!name.trim() ? "请填写活动名称" : selectedGifts.length === 0 ? "至少选 1 个礼物" : "时间区间无效"}
+              {!name.trim()
+                ? "请填写活动名称"
+                : selectedGifts.length === 0
+                ? "至少选 1 个礼物"
+                : new Date(startAt) >= new Date(endAt)
+                ? "时间区间无效"
+                : preset.kind === "newHire" && preset.days <= 0
+                ? "新人入职天数必须大于 0"
+                : ""}
             </div>
           )}
         </div>

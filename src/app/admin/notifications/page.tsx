@@ -60,7 +60,7 @@ export default async function NotificationsPage() {
     <div className="p-8">
       <PageHeader
         title="推送中心"
-        desc="飞书 / 钉钉 / 企业微信 / 邮件触达 — 漏斗分析与手动催领"
+        desc="飞书 / 邮件触达 — 漏斗分析与手动催领"
         actions={<NotifyActions runCron={true} />}
       />
 

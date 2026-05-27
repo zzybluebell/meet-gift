@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/admin/page-header";
 import { NewEmployeeButton, EditEmployeeButton } from "@/components/admin/employee-dialog";
+import { ImportEmployeesButton } from "@/components/admin/import-employees-dialog";
 import { EmployeeFilters, EmployeePagination } from "@/components/admin/employee-filters";
 import { Empty } from "@/components/ui/empty";
 import { formatDateShort, tenureYears } from "@/lib/utils";
@@ -122,7 +123,12 @@ export default async function EmployeesPage({
       <PageHeader
         title="员工名单 · 权限管理"
         desc={`共 ${statsAll} 人 · 在职 ${statsActive} · 管理员 ${statsAdmins} · 核销员 ${statsVerifiers}`}
-        actions={<NewEmployeeButton buildings={buildingsForDialog} />}
+        actions={
+          <>
+            <ImportEmployeesButton />
+            <NewEmployeeButton buildings={buildingsForDialog} departments={departments} />
+          </>
+        }
       />
 
       {/* 关键统计 */}
@@ -280,6 +286,7 @@ export default async function EmployeesPage({
                                 email: e.email,
                               }}
                               buildings={buildingsForDialog}
+                              departments={departments}
                             />
                           </td>
                         </tr>

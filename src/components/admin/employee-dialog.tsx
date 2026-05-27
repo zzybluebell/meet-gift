@@ -51,35 +51,55 @@ const STATUS_OPTIONS = [
 const GENDERS = [
   { value: "M", label: "男" },
   { value: "F", label: "女" },
-  { value: "Other", label: "其他" },
 ];
 
-export function NewEmployeeButton({ buildings }: { buildings: Building[] }) {
-  return <EmployeeDialog mode="create" buildings={buildings} />;
+export function NewEmployeeButton({
+  buildings,
+  departments,
+}: {
+  buildings: Building[];
+  departments: string[];
+}) {
+  return <EmployeeDialog mode="create" buildings={buildings} departments={departments} />;
 }
 
-export function EditEmployeeButton({ employee, buildings }: { employee: Employee; buildings: Building[] }) {
-  return <EmployeeDialog mode="edit" employee={employee} buildings={buildings} />;
+export function EditEmployeeButton({
+  employee,
+  buildings,
+  departments,
+}: {
+  employee: Employee;
+  buildings: Building[];
+  departments: string[];
+}) {
+  return (
+    <EmployeeDialog mode="edit" employee={employee} buildings={buildings} departments={departments} />
+  );
 }
 
 function EmployeeDialog({
   mode,
   employee,
   buildings,
+  departments,
 }: {
   mode: "create" | "edit";
   employee?: Employee;
   buildings: Building[];
+  departments: string[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // 旧数据可能有 "Other" 性别，UI 已不提供这个选项，归一到 M 防止保存又把旧值带回
+  const normalizedGender = (g: string | undefined) => (g === "F" ? "F" : "M");
+
   const [form, setForm] = useState({
     employeeNo: employee?.employeeNo ?? "",
     name: employee?.name ?? "",
-    gender: employee?.gender ?? "M",
+    gender: normalizedGender(employee?.gender),
     department: employee?.department ?? "",
     buildingId: employee?.buildingId ?? "",
     hireDate: employee?.hireDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
@@ -96,7 +116,7 @@ function EmployeeDialog({
       setForm({
         employeeNo: employee?.employeeNo ?? "",
         name: employee?.name ?? "",
-        gender: employee?.gender ?? "M",
+        gender: normalizedGender(employee?.gender),
         department: employee?.department ?? "",
         buildingId: employee?.buildingId ?? "",
         hireDate: employee?.hireDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
@@ -201,15 +221,27 @@ function EmployeeDialog({
             <div>
               <Label>部门 *</Label>
               <Input
+                list="employee-dept-suggestions"
                 value={form.department}
                 onChange={(e) => setForm({ ...form, department: e.target.value })}
                 placeholder="如 研发中心"
                 className="mt-1.5"
               />
+              <datalist id="employee-dept-suggestions">
+                {departments.map((d) => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+              {departments.length > 0 && (
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  已有部门：{departments.slice(0, 6).join(" · ")}
+                  {departments.length > 6 && ` · 等 ${departments.length} 个`}
+                </div>
+              )}
             </div>
             <div>
               <Label>性别</Label>
-              <div className="grid grid-cols-3 gap-1 mt-1.5">
+              <div className="grid grid-cols-2 gap-1 mt-1.5">
                 {GENDERS.map((g) => (
                   <button
                     key={g.value}

@@ -21,6 +21,12 @@ function makePrisma() {
     authToken,
   });
 
+  // 关键：libsql 默认不开 SQLite 外键约束，会让 schema 里 onDelete:Cascade 失效、
+  // 也让插入孤儿 FK（如不存在的 warehouseId）静默成功。这里强制开启，确保 DB 完整性。
+  libsql.execute("PRAGMA foreign_keys = ON").catch((e) => {
+    console.error("Failed to enable foreign_keys PRAGMA:", e);
+  });
+
   const adapter = new PrismaLibSQL(libsql);
 
   return new PrismaClient({

@@ -25,6 +25,66 @@ const HOLIDAY_OPTIONS = [
   { value: "other", label: "其他", emoji: "🎀" },
 ];
 
+// 农历节日 → 公历日期表（硬编码 2026-2028，每年农历转公历不同）
+const LUNAR_HOLIDAY_DATES: Record<string, { y: number; m: number; d: number }[]> = {
+  spring: [
+    { y: 2026, m: 2, d: 17 },
+    { y: 2027, m: 2, d: 6 },
+    { y: 2028, m: 1, d: 26 },
+  ],
+  dragon_boat: [
+    { y: 2026, m: 6, d: 19 },
+    { y: 2027, m: 6, d: 9 },
+    { y: 2028, m: 5, d: 28 },
+  ],
+  mid_autumn: [
+    { y: 2026, m: 9, d: 25 },
+    { y: 2027, m: 9, d: 15 },
+    { y: 2028, m: 10, d: 3 },
+  ],
+};
+
+// 固定公历节日 → (月, 日)
+const FIXED_HOLIDAY_MD: Record<string, { m: number; d: number }> = {
+  womens: { m: 3, d: 8 },
+  childrens: { m: 6, d: 1 },
+};
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+function toDatetimeLocal(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// 返回该节日下一次发生时间；找不到（不固定的、过去且无未来记录）返回 null
+function nextHolidayDate(holidayType: string): Date | null {
+  const now = Date.now();
+  const lunar = LUNAR_HOLIDAY_DATES[holidayType];
+  if (lunar) {
+    const next = lunar.find((d) => new Date(d.y, d.m - 1, d.d).getTime() > now);
+    return next ? new Date(next.y, next.m - 1, next.d) : null;
+  }
+  const fixed = FIXED_HOLIDAY_MD[holidayType];
+  if (fixed) {
+    const year = new Date().getFullYear();
+    const thisYear = new Date(year, fixed.m - 1, fixed.d);
+    return thisYear.getTime() > now ? thisYear : new Date(year + 1, fixed.m - 1, fixed.d);
+  }
+  return null; // birthday / tenure / new_hire / other — 不建议日期
+}
+
+// 节日 → 建议活动区间：节日前 7 天 09:00 开放，节日后 3 天 18:00 截止
+function getSuggestedDateRange(holidayType: string): { startAt: string; endAt: string } | null {
+  const target = nextHolidayDate(holidayType);
+  if (!target) return null;
+  const start = new Date(target.getTime() - 7 * 86400000);
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(target.getTime() + 3 * 86400000);
+  end.setHours(18, 0, 0, 0);
+  return { startAt: toDatetimeLocal(start), endAt: toDatetimeLocal(end) };
+}
+
 type EligibilityPreset =
   | { kind: "all" }
   | { kind: "department"; departments: string[] }
@@ -167,6 +227,12 @@ export function NewCampaignForm({
                       if (opt.value !== "new_hire" && preset.kind === "newHire") {
                         setPreset({ kind: "all" });
                       }
+                      // 固定/农历节日：自动套用建议日期区间（节日前 7 天 09:00 ~ 节日后 3 天 18:00）
+                      const suggested = getSuggestedDateRange(opt.value);
+                      if (suggested) {
+                        setStartAt(suggested.startAt);
+                        setEndAt(suggested.endAt);
+                      }
                     }}
                     className={cn(
                       "h-12 rounded-lg border-2 text-sm transition-all flex items-center justify-center gap-1.5",
@@ -180,6 +246,14 @@ export function NewCampaignForm({
                   </button>
                 ))}
               </div>
+              {nextHolidayDate(holidayType) && (
+                <div className="text-[11px] text-muted-foreground mt-1.5">
+                  💡 已按节日日期（{(() => {
+                    const d = nextHolidayDate(holidayType)!;
+                    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+                  })()}）自动填好时间区间，可手动调整
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

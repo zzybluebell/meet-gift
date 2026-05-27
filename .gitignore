@@ -23,6 +23,9 @@ dev.db-journal
 # Claude Code 本地配置
 .claude/settings.local.json
 
+# 本地文档（流程图等，不入库）
+docs/
+
 # Misc
 next-env.d.ts
 tsconfig.tsbuildinfo

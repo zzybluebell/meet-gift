@@ -33,7 +33,7 @@ export default async function HomePage() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            MVP · v0.2
+            MVP · v0.3
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
             礼达 · 节日福利发放系统

@@ -2,7 +2,8 @@
 // 数据模型对齐 PRD §8
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {

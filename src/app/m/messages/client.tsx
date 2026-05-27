@@ -116,7 +116,7 @@ export function MessagesClient({ items: initialItems }: { items: Item[] }) {
 
       {items.length === 0 ? (
         <Empty
-          icon={Inbox}
+          icon={<Inbox className="w-10 h-10" />}
           title="还没有消息"
           desc="你的节日福利通知会出现在这里"
         />

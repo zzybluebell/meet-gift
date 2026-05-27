@@ -92,7 +92,7 @@ export default async function NotificationsPage() {
 
       {/* 按活动 */}
       {funnels.length === 0 ? (
-        <Empty icon={Bell} title="还没有活动" desc="去创建活动后会自动触达员工" />
+        <Empty icon={<Bell className="w-10 h-10" />} title="还没有活动" desc="去创建活动后会自动触达员工" />
       ) : (
         <div className="space-y-3">
           {funnels.map((f) => (

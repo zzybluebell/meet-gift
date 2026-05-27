@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { Gift, ShieldCheck, ScanLine, ArrowRight, Building2 } from "lucide-react";
+import { Gift, ShieldCheck, ScanLine, ArrowRight, Building2, Monitor, Smartphone } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +49,7 @@ export default async function HomePage() {
             desc="活动 / 库存 / 看板 / 补录 / 名单导入 / 用户与权限"
             icon={ShieldCheck}
             color="from-blue-500 to-indigo-500"
+            device="desktop"
             accounts={[{ no: "10001", label: "管理员小 A", sub: "行政人事" }]}
             note="可在员工管理页改任何人的角色与楼宇"
           />
@@ -59,6 +60,7 @@ export default async function HomePage() {
             desc="查看可领礼物 / 一键预约 / 出示核销码"
             icon={Gift}
             color="from-rose-500 to-orange-500"
+            device="mobile"
             accounts={[
               { no: "30001", label: "员工小 B", sub: "男 · 研发中心" },
               { no: "30002", label: "员工小 D", sub: "女 · 设计中心 · 有娃" },
@@ -73,6 +75,7 @@ export default async function HomePage() {
             desc="扫码核销 / 工号核销 / 实时库存 · 仅能核销本楼宇预约"
             icon={ScanLine}
             color="from-emerald-500 to-teal-500"
+            device="mobile"
             accounts={verifiers.map((v) => ({
               no: v.employeeNo,
               label: v.name.replace(/[（(].*$/, "").trim(),
@@ -101,6 +104,7 @@ function RoleCard({
   desc,
   icon: Icon,
   color,
+  device,
   accounts,
   note,
 }: {
@@ -108,16 +112,42 @@ function RoleCard({
   desc: string;
   icon: any;
   color: string;
+  device?: "mobile" | "desktop";
   accounts: { no: string; label: string; sub?: string }[];
   note?: string;
 }) {
+  const deviceMeta =
+    device === "mobile"
+      ? {
+          label: "建议手机端打开",
+          icon: Smartphone,
+          className: "text-rose-700 bg-rose-50 border-rose-200",
+        }
+      : device === "desktop"
+      ? {
+          label: "建议电脑端操作",
+          icon: Monitor,
+          className: "text-blue-700 bg-blue-50 border-blue-200",
+        }
+      : null;
+  const DeviceIcon = deviceMeta?.icon;
   return (
     <Card className="group hover:shadow-lg transition-all overflow-hidden border-2 hover:border-primary/40">
       <CardContent className="p-6 space-y-4">
-        <div
-          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white shadow-sm`}
-        >
-          <Icon className="w-6 h-6" />
+        <div className="flex items-start justify-between gap-2">
+          <div
+            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white shadow-sm shrink-0`}
+          >
+            <Icon className="w-6 h-6" />
+          </div>
+          {deviceMeta && DeviceIcon && (
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${deviceMeta.className}`}
+            >
+              <DeviceIcon className="w-3 h-3" />
+              {deviceMeta.label}
+            </span>
+          )}
         </div>
         <div>
           <div className="text-lg font-semibold">{title}</div>

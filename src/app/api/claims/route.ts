@@ -1,12 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { genClaimCode, genQrToken } from "@/lib/utils";
 import { enqueueEmployeeNotification, flushQueued } from "@/lib/notifications";
+import { claimLimiter, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+
+  // 限流：单用户 10s 5 次（防双击 + 防脚本）
+  const rl = await claimLimiter.check(user.id);
+  const limited = rateLimitResponse(rl);
+  if (limited) return limited;
 
   const { campaignId, giftId, warehouseId } = await req.json();
   if (!campaignId || !giftId || !warehouseId) {
@@ -46,17 +52,19 @@ export async function POST(req: Request) {
   // 校验并锁定库存（事务）
   try {
     const claim = await prisma.$transaction(async (tx) => {
-      const inv = await tx.inventory.findUnique({
-        where: { warehouseId_giftId: { warehouseId, giftId } },
-      });
-      const available = (inv?.qtyTotal ?? 0) - (inv?.qtyReserved ?? 0) - (inv?.qtyClaimed ?? 0);
-      if (!inv || available <= 0) {
+      // 原子库存扣减：在 SQL 层用 conditional UPDATE 一次完成"校验 + 写入"，
+      // 避免 read-then-write 在并发下的潜在 race。即使 SQLite 写串行化已经能防超卖，
+      // 这种写法在未来迁 Postgres 时同样安全，且语义更清晰。
+      const updatedCount = await tx.$executeRaw`
+        UPDATE Inventory
+        SET qtyReserved = qtyReserved + 1
+        WHERE warehouseId = ${warehouseId}
+          AND giftId = ${giftId}
+          AND qtyTotal > qtyReserved + qtyClaimed
+      `;
+      if (updatedCount === 0) {
         throw new Error("该楼宇已缺货，请选其他楼宇");
       }
-      await tx.inventory.update({
-        where: { warehouseId_giftId: { warehouseId, giftId } },
-        data: { qtyReserved: { increment: 1 } },
-      });
 
       // 如果之前有 cancelled 的，更新它；否则创建
       if (existing) {
@@ -87,13 +95,16 @@ export async function POST(req: Request) {
       });
     });
 
-    // 预约成功 → 推送确认通知
-    try {
-      await enqueueEmployeeNotification(campaignId, user.id, "reserved_confirm");
-      await flushQueued();
-    } catch (e) {
-      console.error("通知发送失败:", e);
-    }
+    // 通知异步化：用 Next.js 15 的 after() 在 response 返回后执行，
+    // 避免飞书/邮件 RPC 拖慢用户感知 RT
+    after(async () => {
+      try {
+        await enqueueEmployeeNotification(campaignId, user.id, "reserved_confirm");
+        await flushQueued();
+      } catch (e) {
+        console.error("通知发送失败:", e);
+      }
+    });
 
     return NextResponse.json({ ok: true, id: claim.id, claimCode: claim.claimCode });
   } catch (e: any) {

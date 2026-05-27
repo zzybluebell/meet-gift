@@ -137,6 +137,9 @@ src/
 │   ├── prisma.ts                 Prisma client 单例
 │   ├── auth.ts                   cookie-based mock session
 │   ├── eligibility.ts            资格规则引擎
+│   ├── expire.ts                 过期/释放逻辑（cron 调用）
+│   ├── notifications.ts          IM 推送 enqueue / flush
+│   ├── rate-limit.ts             滑动窗口限流（claim / verify / login）
 │   └── utils.ts                  cn / 日期 / 核销码生成
 └── prisma/
     ├── schema.prisma             数据模型
@@ -210,6 +213,48 @@ src/
 - ❌ verifier 必须先分配楼宇
 - ⚠️ 有领取记录的员工删除时会软删除（设为 resigned）
 
+## 🛡️ 并发与可用性
+
+为 3000 人规模的节日开抢场景做了**四层兜底**：
+
+| 层 | 实现 | 防什么 |
+|---|---|---|
+| L1 应用限流 | `src/lib/rate-limit.ts` 滑动窗口 | 用户双击 / 脚本刷接口 |
+| L2 SQL 原子扣减 | `$executeRaw` conditional UPDATE | 业务层 race window |
+| L3 数据库写串行化 | SQLite / Turso 单写者 | L1 + L2 都被绕过时 |
+| L4 唯一约束兜底 | `@@unique([campaignId, employeeId])` | 同一员工领多份 |
+
+**限流策略**（单实例内存版，可换 Upstash Redis 升级为分布式）：
+
+| 接口 | 限流 | Key |
+|---|---|---|
+| `POST /api/claims` | 10s 5 次 | per 员工 ID |
+| `POST /api/verify` | 10s 30 次 | per 核销员 ID |
+| `POST /api/auth/login` | 60s 10 次 | per IP（防工号枚举） |
+
+被限流时返回 `429` + `Retry-After` 头。
+
+**通知异步化**：员工预约/核销成功后的飞书/邮件推送用 Next.js 15 `after()` API，response 返回后再异步发送，不阻塞用户 RT。
+
+**库存原子扣减写法**（[src/app/api/claims/route.ts](./src/app/api/claims/route.ts)）：
+
+```sql
+UPDATE Inventory
+SET qtyReserved = qtyReserved + 1
+WHERE warehouseId = ? AND giftId = ?
+  AND qtyTotal > qtyReserved + qtyClaimed
+```
+
+WHERE 子句里把校验和写入合并成一条 SQL，受影响行数 = 0 → 缺货。**理论上 1000+ QPS 压测不会出现超卖**（账面 `qtyReserved + qtyClaimed > qtyTotal`）。
+
+压测后对账 SQL（必须返回 0 行）：
+
+```sql
+SELECT * FROM Inventory WHERE qtyReserved + qtyClaimed > qtyTotal;
+```
+
+---
+
 ## 🚧 待办
 
 - 真实飞书 / 邮件 API 接入（当前为 mock，逻辑闭环已具备）
@@ -227,7 +272,9 @@ src/
 - [x] 行政可以在 10 分钟内创建一个完整批次
 - [x] 员工从入口到二维码不超过 4 次点击
 - [x] 分仓核销单次操作 ≤ 3 秒
-- [x] 库存任何变更通过事务保证一致
+- [x] 库存变更：事务 + SQL 原子扣减 + 唯一约束三重保证
 - [x] 数据看板秒级响应
-- [ ] 200 人并发压测（SQLite 单机的局限，生产用 Postgres）
+- [x] 限流：claim / verify / login 全部加上，防双击 / 防枚举
+- [x] 通知异步化：`after()` 不阻塞用户 RT
+- [ ] 真实 200+ 人并发压测（k6 / artillery，跑完用对账 SQL 验证）
 - [ ] 5 分钟培训视频（待录）

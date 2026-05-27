@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueEmployeeNotification, flushQueued } from "@/lib/notifications";
+import { verifyLimiter, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -9,6 +10,11 @@ export async function POST(req: Request) {
   if (user.role !== "verifier" && user.role !== "admin") {
     return NextResponse.json({ error: "无核销权限" }, { status: 403 });
   }
+
+  // 限流：单 verifier 10s 30 次（扫码可以快，但防异常循环）
+  const rl = await verifyLimiter.check(user.id);
+  const limited = rateLimitResponse(rl);
+  if (limited) return limited;
 
   const { claimCode, qrToken } = await req.json();
   if (!claimCode && !qrToken) {
@@ -95,13 +101,15 @@ export async function POST(req: Request) {
     }),
   ]);
 
-  // 核销成功 → 推送签收通知
-  try {
-    await enqueueEmployeeNotification(claim.campaignId, claim.employeeId, "claimed_confirm");
-    await flushQueued();
-  } catch (e) {
-    console.error("通知发送失败:", e);
-  }
+  // 通知异步化：response 返回后再处理，不阻塞核销动作
+  after(async () => {
+    try {
+      await enqueueEmployeeNotification(claim.campaignId, claim.employeeId, "claimed_confirm");
+      await flushQueued();
+    } catch (e) {
+      console.error("通知发送失败:", e);
+    }
+  });
 
   return NextResponse.json({
     ok: true,

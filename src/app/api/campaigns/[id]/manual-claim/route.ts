@@ -59,16 +59,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       where: { campaignId_employeeId: { campaignId, employeeId: employee.id } },
     });
 
-    // 校验库存
-    const inv = await prisma.inventory.findUnique({
-      where: { warehouseId_giftId: { warehouseId: finalWarehouseId, giftId: finalGiftId } },
-    });
-    const available = (inv?.qtyTotal ?? 0) - (inv?.qtyReserved ?? 0) - (inv?.qtyClaimed ?? 0);
-    if (!inv || available <= 0) {
-      return NextResponse.json({ error: "该楼宇礼物已无库存" }, { status: 400 });
-    }
-
     // 执行：补录 = 直接创建 claim + 标记 claimed + 库存 qtyClaimed++
+    // 所有 qtyClaimed++ 都用 conditional UPDATE 校验 qtyTotal >= qtyReserved + qtyClaimed + 1，
+    // 杜绝行政手快/脚本批量补录写超库存
     const result = await prisma.$transaction(async (tx) => {
       // 资格：没有就创建
       if (!eligibility) {
@@ -85,7 +78,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       // claim：有 reserved 的转 claimed；有 cancelled/expired 的新建；没有的新建
       let claim;
       if (existing && (existing.status === "reserved")) {
-        // 转 claimed，库存 reserved-- claimed++
+        // 转 claimed
         claim = await tx.claim.update({
           where: { id: existing.id },
           data: {
@@ -96,14 +89,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             warehouseId: finalWarehouseId,
           },
         });
-        await tx.inventory.update({
-          where: { warehouseId_giftId: { warehouseId: existing.warehouseId, giftId: existing.giftId } },
-          data: { qtyReserved: { decrement: 1 } },
-        });
-        await tx.inventory.update({
-          where: { warehouseId_giftId: { warehouseId: finalWarehouseId, giftId: finalGiftId } },
-          data: { qtyClaimed: { increment: 1 } },
-        });
+        if (existing.warehouseId === finalWarehouseId && existing.giftId === finalGiftId) {
+          // 同仓同货：reserved 已经预扣过 qtyTotal 的额度，直接 reserved-- claimed++
+          await tx.$executeRaw`
+            UPDATE Inventory
+            SET qtyReserved = qtyReserved - 1, qtyClaimed = qtyClaimed + 1
+            WHERE warehouseId = ${finalWarehouseId} AND giftId = ${finalGiftId}
+          `;
+        } else {
+          // 跨仓/跨货：旧 reserved 释放，新仓 claimed++ 需要校验
+          await tx.inventory.update({
+            where: { warehouseId_giftId: { warehouseId: existing.warehouseId, giftId: existing.giftId } },
+            data: { qtyReserved: { decrement: 1 } },
+          });
+          const upd = await tx.$executeRaw`
+            UPDATE Inventory
+            SET qtyClaimed = qtyClaimed + 1
+            WHERE warehouseId = ${finalWarehouseId}
+              AND giftId = ${finalGiftId}
+              AND qtyTotal > qtyReserved + qtyClaimed
+          `;
+          if (upd === 0) throw new Error("目标楼宇礼物已无库存");
+        }
       } else if (existing) {
         // cancelled/expired 的，覆盖
         claim = await tx.claim.update({
@@ -118,10 +125,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             qrToken: genQrToken(),
           },
         });
-        await tx.inventory.update({
-          where: { warehouseId_giftId: { warehouseId: finalWarehouseId, giftId: finalGiftId } },
-          data: { qtyClaimed: { increment: 1 } },
-        });
+        const upd = await tx.$executeRaw`
+          UPDATE Inventory
+          SET qtyClaimed = qtyClaimed + 1
+          WHERE warehouseId = ${finalWarehouseId}
+            AND giftId = ${finalGiftId}
+            AND qtyTotal > qtyReserved + qtyClaimed
+        `;
+        if (upd === 0) throw new Error("该楼宇礼物已无库存");
       } else {
         // 全新
         claim = await tx.claim.create({
@@ -137,10 +148,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             verifierId: admin.id,
           },
         });
-        await tx.inventory.update({
-          where: { warehouseId_giftId: { warehouseId: finalWarehouseId, giftId: finalGiftId } },
-          data: { qtyClaimed: { increment: 1 } },
-        });
+        const upd = await tx.$executeRaw`
+          UPDATE Inventory
+          SET qtyClaimed = qtyClaimed + 1
+          WHERE warehouseId = ${finalWarehouseId}
+            AND giftId = ${finalGiftId}
+            AND qtyTotal > qtyReserved + qtyClaimed
+        `;
+        if (upd === 0) throw new Error("该楼宇礼物已无库存");
       }
       return claim;
     });

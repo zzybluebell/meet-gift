@@ -1,5 +1,4 @@
-// 资格规则引擎（MVP：单层 AND/OR + 5 字段）
-// PRD §10 决策 4
+// 资格规则引擎：单层 AND/OR + 6 个字段（部门 / 性别 / 楼宇 / 有娃 / 司龄 / 入职天数）
 
 import { Employee } from "@prisma/client";
 

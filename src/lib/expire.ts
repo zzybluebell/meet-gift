@@ -1,4 +1,4 @@
-// 自动过期核心逻辑（PRD §11）
+// 自动过期核心逻辑
 // 1. endAt 已过的 active 活动 → closed
 // 2. status=reserved 但活动已 closed 的 claim → expired + 释放 reserved 库存
 // 3. eligibility.status=eligible 但活动已 closed → expired

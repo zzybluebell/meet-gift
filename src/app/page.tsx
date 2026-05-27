@@ -32,7 +32,7 @@ export default async function HomePage() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            vibecoding MVP · v0.2
+            企业福利管理 · 一体化平台
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
             礼达 · 节日福利发放系统
@@ -92,7 +92,7 @@ export default async function HomePage() {
         </div>
 
         <div className="mt-16 text-center text-xs text-muted-foreground">
-          MVP 覆盖 PRD §7 Must · 单层 AND/OR 规则引擎 · 软锁定库存 · 一码一用 · 自动过期 · Excel 导入 · 补录领取
+          多端协同 · 灵活资格规则 · 实时库存 · 一码一用 · 自动过期 · 名单导入 · 行政补录
         </div>
       </div>
     </div>

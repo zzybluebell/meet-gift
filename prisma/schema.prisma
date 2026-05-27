@@ -1,0 +1,184 @@
+// Prisma schema for 节日福利礼物发放系统
+// 数据模型对齐 PRD §8
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== 员工 =====
+model Employee {
+  id           String   @id @default(cuid())
+  employeeNo   String   @unique // 工号
+  name         String
+  gender       String // "M" | "F" | "Other"
+  department   String
+  buildingId   String?
+  building     Building? @relation(fields: [buildingId], references: [id])
+  hireDate     DateTime
+  birthDate    DateTime?
+  hasChildren  Boolean  @default(false)
+  status       String   @default("active") // active | leave | resigned
+  role         String   @default("employee") // employee | admin | verifier
+  email        String?  @unique
+
+  claims        Claim[]
+  eligibilities Eligibility[]
+  verifiedClaims Claim[] @relation("VerifiedBy")
+  managedWarehouses Warehouse[] @relation("WarehouseManager")
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+}
+
+// ===== 楼宇 / 分仓 =====
+model Building {
+  id          String   @id @default(cuid())
+  name        String   @unique // "科技园 A 座"
+  address     String
+  employees   Employee[]
+  warehouses  Warehouse[]
+}
+
+// 一栋楼一个分仓（MVP 简化）
+model Warehouse {
+  id         String     @id @default(cuid())
+  buildingId String     @unique
+  building   Building   @relation(fields: [buildingId], references: [id])
+  inventories Inventory[]
+  claims     Claim[]
+  managerId  String?
+  manager    Employee?  @relation("WarehouseManager", fields: [managerId], references: [id])
+}
+
+// ===== 礼物 SKU =====
+model Gift {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  imageUrl      String?
+  value         Int      @default(0) // 估值（分），做预算
+  category      String   @default("other") // food | daily | digital | other
+  allergenTags  String   @default("[]") // JSON: 食品类必填，如 ["nuts","dairy"]
+
+  inventories   Inventory[]
+  campaignGifts CampaignGift[]
+  claims        Claim[]
+
+  createdAt DateTime @default(now())
+}
+
+// ===== 库存 =====
+// MVP 库存 = 全局共享（不绑定批次），通过 reserved 软锁定
+model Inventory {
+  id          String   @id @default(cuid())
+  warehouseId String
+  giftId      String
+  qtyTotal    Int      @default(0)
+  qtyReserved Int      @default(0)
+  qtyClaimed  Int      @default(0)
+  // qtyAvailable = qtyTotal - qtyReserved - qtyClaimed (派生)
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  gift      Gift      @relation(fields: [giftId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, giftId])
+}
+
+// ===== 批次 / 活动 =====
+model Campaign {
+  id              String   @id @default(cuid())
+  name            String   // "2026 中秋福利"
+  holidayType     String   // mid_autumn | dragon_boat | spring | womens | childrens | birthday | tenure | other
+  description     String?
+  startAt         DateTime
+  endAt           DateTime
+  selectionMode   String   @default("fixed") // fixed | choose_one
+  eligibilityRule String   @default("{\"type\":\"ALL\"}") // JSON DSL
+  status          String   @default("draft") // draft | published | active | closed
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  campaignGifts CampaignGift[]
+  eligibilities Eligibility[]
+  claims        Claim[]
+  notifications Notification[]
+}
+
+model CampaignGift {
+  id              String   @id @default(cuid())
+  campaignId      String
+  giftId          String
+  qtyPerEmployee  Int      @default(1)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  gift     Gift     @relation(fields: [giftId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, giftId])
+}
+
+// ===== 资格名单 =====
+// 由规则引擎根据 Campaign.eligibilityRule 生成
+model Eligibility {
+  id         String   @id @default(cuid())
+  campaignId String
+  employeeId String
+  status     String   @default("eligible") // eligible | excluded | claimed | expired
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, employeeId])
+}
+
+// ===== 领取记录 =====
+model Claim {
+  id          String   @id @default(cuid())
+  campaignId  String
+  employeeId  String
+  giftId      String   // 员工选定的 SKU
+  warehouseId String   // 员工选定的领取楼宇
+  claimCode   String   @unique // 6 位数字
+  qrToken     String   @unique // 二维码 token
+  status      String   @default("reserved") // reserved | claimed | cancelled | expired
+  reservedAt  DateTime @default(now())
+  claimedAt   DateTime?
+  verifierId  String?  // 核销人
+
+  campaign  Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  gift      Gift      @relation(fields: [giftId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  verifier  Employee? @relation("VerifiedBy", fields: [verifierId], references: [id])
+
+  @@unique([campaignId, employeeId]) // 一个员工一个批次只能领一份
+}
+
+// ===== IM 通知（飞书 / 钉钉 / 企微 mock）=====
+model Notification {
+  id          String   @id @default(cuid())
+  campaignId  String
+  employeeId  String
+  type        String   // initial | reminder_24h | reminder_2h | reserved_confirm | claimed_confirm | last_call
+  channel     String   @default("lark") // lark | dingtalk | wecom | email
+  status      String   @default("queued") // queued | sent | failed | read | clicked
+  title       String
+  content     String
+  ctaUrl      String?
+  queuedAt    DateTime @default(now())
+  sentAt      DateTime?
+  readAt      DateTime?
+  clickedAt   DateTime?
+  failReason  String?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, status])
+  @@index([campaignId, type])
+}

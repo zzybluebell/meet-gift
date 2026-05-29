@@ -26,11 +26,16 @@
 # 安装
 npm install
 
+# 插入数据库连接
+echo "DATABASE_URL=\"file:$(pwd)/dev.db\"" > .env
+
 # 初始化数据库 + 种子数据
 npm run db:reset
 
 # 启动开发服务器
 npm run dev
+
+#前往本地连接
 # → http://localhost:3000
 ```
 
